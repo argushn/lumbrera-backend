@@ -19,3 +19,7 @@
 
 # Go workspace file
 go.work
+.aws-sam
+.terraform*
+.aws-sam-iacs
+tf-resources/builds
