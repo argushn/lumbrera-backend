@@ -4,7 +4,7 @@ module "lambda_function_responder" {
 
   timeout             = 300
   source_path         = "../lessons/"
-  function_name       = "http_lessons"
+  function_name       = "lessons"
   handler             = "main"
   runtime             = "go1.x"
   create_sam_metadata = true

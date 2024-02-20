@@ -13,13 +13,20 @@ resource "aws_apigatewayv2_stage" "stage" {
   name        = "$default"
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.logs.arn
-    format = jsonencode({"requestId":"$context.requestId", "ip":"$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "responseLength":"$context.responseLength", "integrationError":"$context.integrationErrorMessage" })
+    format = jsonencode(
+      {
+        "requestId" : "$context.requestId",
+        "ip" : "$context.identity.sourceIp",
+        "requestTime" : "$context.requestTime",
+        "httpMethod" : "$context.httpMethod",
+        "routeKey" : "$context.routeKey",
+        "status" : "$context.status", "protocol" : "$context.protocol",
+        "responseLength" : "$context.responseLength",
+        "integrationError" : "$context.integrationErrorMessage"
+      }
+    )
   }
 }
-
-# #######################################
-# ## Open endpoint                     ##
-# #######################################
 
 resource "aws_apigatewayv2_integration" "open_integration" {
   api_id                 = aws_apigatewayv2_api.api.id
