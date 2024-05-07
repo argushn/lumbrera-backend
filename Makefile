@@ -1,19 +1,16 @@
-.PHONY: build
+.PHONY: build clean deploy
 
 build:
-	cd lessons;
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o main main.go
+	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/create functions/lessons/create.go
 
-clean: 
-	rm -R tf-resources/.aws-sam \
-		tf-resources/.aws-sam-iacs \
-		tf-resources/.terraform
+clean:
+	rm -rf ./bin ./vendor Gopkg.lock
 
-build-terraform: clean
-	cd tf-resources; sam build --hook-name terraform --terraform-project-root-path ../
+deploy: clean build
+	sls deploy --verbose
 
-invoke:
-	cd tf-resources; sam local invoke --hook-name terraform
+test:
+	cd functions/lessons && go test
 
-start:
-	cd tf-resources; sam local start-api
+run:
+	docker-compose up
