@@ -2,71 +2,12 @@ package main
 
 import (
 	"context"
-	"strconv"
 	"testing"
 
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-
 	"lumbrera/internal/database"
-	"lumbrera/internal/models"
+
+	"github.com/aws/aws-lambda-go/events"
 )
-
-type mockDynamoDBPutItemAPI func(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
-
-func (m mockDynamoDBPutItemAPI) PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
-	return m(ctx, params, optFns...)
-}
-
-func getMockedClient(t *testing.T) database.DynamoDBPutItemAPI {
-	return mockDynamoDBPutItemAPI(func(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
-		t.Helper()
-		if params.TableName == nil {
-			t.Fatal("expect table name to not be nil")
-		}
-		if e, a := "lessons", *params.TableName; e != a {
-			t.Errorf("expect %v, got %v", e, a)
-		}
-		if params.Item == nil {
-			t.Fatal("expect item to not be nil")
-		}
-
-		return &dynamodb.PutItemOutput{}, nil
-	})
-}
-
-func TestSaveLessonInDynamoDB(t *testing.T) {
-	cases := []struct {
-		tableName       string
-		lesson          models.Lesson
-		fields_affected int
-	}{
-		{
-			tableName: "lessons",
-			lesson: models.Lesson{
-				Id:   "1",
-				Name: "lesson 1",
-			},
-			fields_affected: 1,
-		},
-	}
-
-	for i, tt := range cases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			ctx := context.TODO()
-
-			fields_affected, err := database.PutItemInDynamoDB(ctx, getMockedClient(t), tt.tableName, tt.lesson)
-
-			if err != nil {
-				t.Fatalf("expect no error, got %v", err)
-			}
-
-			if e, a := tt.fields_affected, fields_affected; e != a {
-				t.Errorf("expect %v, got %v", e, a)
-			}
-		})
-	}
-}
 
 func TestSaveLesson(t *testing.T) {
 	cases := []struct {
@@ -113,7 +54,7 @@ func TestSaveLesson(t *testing.T) {
 				Body:       tt.body,
 			}
 
-			handler := &Handler{Client: getMockedClient(t)}
+			handler := &Handler{Client: database.GetMockedClient(t)}
 
 			resp, err := handler.Handle(context.Background(), req)
 
