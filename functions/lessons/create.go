@@ -2,18 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/google/uuid"
 )
 
 type Lesson struct {
-	id   int
-	name string
+	Id   string `json:"id,omitempty"`
+	Name string `json:"name"`
 }
 
 func main() {
@@ -63,4 +67,55 @@ func PutItemInDynamoDB(ctx context.Context, api DynamoDBPutItemAPI, tableName st
 	}
 
 	return 1, nil
+}
+
+type CreateLessonHandler struct {
+	Client DynamoDBPutItemAPI
+}
+
+func NewCreateLessonHandler(client DynamoDBPutItemAPI) *CreateLessonHandler {
+	return &CreateLessonHandler{
+		Client: client,
+	}
+}
+
+func (h *CreateLessonHandler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	if req.HTTPMethod != http.MethodPost {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusMethodNotAllowed,
+			Body:       "Only POST method is allowed",
+		}, nil
+	}
+
+	var lesson Lesson
+
+	if err := json.Unmarshal([]byte(req.Body), &lesson); err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       "Invalid request payload",
+		}, nil
+	}
+	if lesson.Name == "" {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       "Missing required field: name",
+		}, nil
+	}
+
+	lesson.Id = uuid.New().String()
+
+	PutItemInDynamoDB(ctx, h.Client, "lessons", lesson)
+
+	respBody, err := json.Marshal(lesson)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       "Failed to marshal response",
+		}, nil
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Body:       string(respBody),
+	}, nil
 }
