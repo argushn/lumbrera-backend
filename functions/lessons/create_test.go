@@ -74,31 +74,42 @@ func TestSaveLesson(t *testing.T) {
 		body       string
 		wantStatus int
 		wantBody   string
+		method     string
 	}{
 		{
 			name:       "Valid request",
 			body:       `{"name":"lesson 1"}`,
 			wantStatus: 200,
 			wantBody:   "Lesson lesson 1 was created successfully",
+			method:     "POST",
+		},
+		{
+			name:       "Wrong method",
+			body:       `{"name":"lesson 2"}`,
+			wantStatus: 405,
+			wantBody:   "Only POST method is allowed",
+			method:     "GET",
 		},
 		{
 			name:       "Missing name",
 			body:       `{"name":""}`,
 			wantStatus: 400,
 			wantBody:   "Missing required field: name",
+			method:     "POST",
 		},
 		{
 			name:       "Invalid JSON",
 			body:       `{`,
 			wantStatus: 400,
 			wantBody:   "Invalid request payload",
+			method:     "POST",
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			req := events.APIGatewayProxyRequest{
-				HTTPMethod: "POST",
+				HTTPMethod: tt.method,
 				Body:       tt.body,
 			}
 

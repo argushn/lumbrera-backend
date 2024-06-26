@@ -10,9 +10,9 @@ import (
 	"lumbrera/internal/models"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/google/uuid"
 )
 
@@ -23,24 +23,12 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	lambdaClient := lambda.NewFromConfig(sdkConfig)
+	dynamoClient := dynamodb.NewFromConfig(sdkConfig)
+	handler := &Handler{
+		Client: dynamoClient,
+	}
 
-	maxItems := 10
-	fmt.Printf("Let's list up to %v functions for your account.\n", maxItems)
-	result, err := lambdaClient.ListFunctions(context.TODO(), &lambda.ListFunctionsInput{
-		MaxItems: aws.Int32(int32(maxItems)),
-	})
-	if err != nil {
-		fmt.Printf("Couldn't list functions for your account. Here's why: %v\n", err)
-		return
-	}
-	if len(result.Functions) == 0 {
-		fmt.Println("You don't have any functions!")
-	} else {
-		for _, function := range result.Functions {
-			fmt.Printf("\t%v\n", *function.FunctionName)
-		}
-	}
+	lambda.Start(handler.Handle)
 }
 
 type Handler struct {
