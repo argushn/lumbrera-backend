@@ -2,19 +2,20 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
+	"lumbrera/internal/models"
+
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/google/uuid"
 )
-
-type Lesson struct {
-	id   int
-	name string
-}
 
 func main() {
 	sdkConfig, err := config.LoadDefaultConfig(context.TODO())
@@ -47,7 +48,7 @@ type DynamoDBPutItemAPI interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 }
 
-func PutItemInDynamoDB(ctx context.Context, api DynamoDBPutItemAPI, tableName string, lesson Lesson) (int, error) {
+func PutItemInDynamoDB(ctx context.Context, api DynamoDBPutItemAPI, tableName string, lesson models.Lesson) (int, error) {
 	item, err := attributevalue.MarshalMap(&lesson)
 	if err != nil {
 		return 0, fmt.Errorf("unable to marshal product: %w", err)
@@ -63,4 +64,47 @@ func PutItemInDynamoDB(ctx context.Context, api DynamoDBPutItemAPI, tableName st
 	}
 
 	return 1, nil
+}
+
+type CreateLessonHandler struct {
+	Client DynamoDBPutItemAPI
+}
+
+func NewCreateLessonHandler(client DynamoDBPutItemAPI) *CreateLessonHandler {
+	return &CreateLessonHandler{
+		Client: client,
+	}
+}
+
+func (h *CreateLessonHandler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	if req.HTTPMethod != http.MethodPost {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusMethodNotAllowed,
+			Body:       "Only POST method is allowed",
+		}, nil
+	}
+
+	var lesson models.Lesson
+
+	if err := json.Unmarshal([]byte(req.Body), &lesson); err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       "Invalid request payload",
+		}, nil
+	}
+	if lesson.Name == "" {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       "Missing required field: name",
+		}, nil
+	}
+
+	lesson.Id = uuid.New().String()
+
+	PutItemInDynamoDB(ctx, h.Client, "lessons", lesson)
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Body:       "Lesson " + lesson.Name + " was created successfully",
+	}, nil
 }
