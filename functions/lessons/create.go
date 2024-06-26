@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"lumbrera/internal/database"
 	"lumbrera/internal/models"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/google/uuid"
 )
@@ -44,39 +43,11 @@ func main() {
 	}
 }
 
-type DynamoDBPutItemAPI interface {
-	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+type Handler struct {
+	Client database.DynamoDBPutItemAPI
 }
 
-func PutItemInDynamoDB(ctx context.Context, api DynamoDBPutItemAPI, tableName string, lesson models.Lesson) (int, error) {
-	item, err := attributevalue.MarshalMap(&lesson)
-	if err != nil {
-		return 0, fmt.Errorf("unable to marshal product: %w", err)
-	}
-
-	_, err = api.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: &tableName,
-		Item:      item,
-	})
-
-	if err != nil {
-		return 0, fmt.Errorf("cannot put item: %w", err)
-	}
-
-	return 1, nil
-}
-
-type CreateLessonHandler struct {
-	Client DynamoDBPutItemAPI
-}
-
-func NewCreateLessonHandler(client DynamoDBPutItemAPI) *CreateLessonHandler {
-	return &CreateLessonHandler{
-		Client: client,
-	}
-}
-
-func (h *CreateLessonHandler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	if req.HTTPMethod != http.MethodPost {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusMethodNotAllowed,
@@ -92,6 +63,7 @@ func (h *CreateLessonHandler) Handle(ctx context.Context, req events.APIGatewayP
 			Body:       "Invalid request payload",
 		}, nil
 	}
+
 	if lesson.Name == "" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
@@ -101,7 +73,7 @@ func (h *CreateLessonHandler) Handle(ctx context.Context, req events.APIGatewayP
 
 	lesson.Id = uuid.New().String()
 
-	PutItemInDynamoDB(ctx, h.Client, "lessons", lesson)
+	database.PutItemInDynamoDB(ctx, h.Client, "lessons", lesson)
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,

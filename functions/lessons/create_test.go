@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 
+	"lumbrera/internal/database"
 	"lumbrera/internal/models"
 )
 
@@ -17,7 +18,7 @@ func (m mockDynamoDBPutItemAPI) PutItem(ctx context.Context, params *dynamodb.Pu
 	return m(ctx, params, optFns...)
 }
 
-func getMockedClient(t *testing.T) DynamoDBPutItemAPI {
+func getMockedClient(t *testing.T) database.DynamoDBPutItemAPI {
 	return mockDynamoDBPutItemAPI(func(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
 		t.Helper()
 		if params.TableName == nil {
@@ -54,7 +55,7 @@ func TestSaveLessonInDynamoDB(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			ctx := context.TODO()
 
-			fields_affected, err := PutItemInDynamoDB(ctx, getMockedClient(t), tt.tableName, tt.lesson)
+			fields_affected, err := database.PutItemInDynamoDB(ctx, getMockedClient(t), tt.tableName, tt.lesson)
 
 			if err != nil {
 				t.Fatalf("expect no error, got %v", err)
@@ -101,9 +102,10 @@ func TestSaveLesson(t *testing.T) {
 				Body:       tt.body,
 			}
 
-			handler := &CreateLessonHandler{Client: getMockedClient(t)}
+			handler := &Handler{Client: getMockedClient(t)}
 
 			resp, err := handler.Handle(context.Background(), req)
+
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -115,16 +117,6 @@ func TestSaveLesson(t *testing.T) {
 			if e, a := tt.wantBody, resp.Body; e != a {
 				t.Errorf("expect %v, got %v", e, a)
 			}
-
-			// if tt.wantStatus == 200 {
-			// 	var lesson models.Lesson
-			// 	err := json.Unmarshal([]byte(resp.Body), &lesson)
-			// 	if err != nil {
-			// 		t.Fatalf("failed to decode response body: %v", err)
-			// 	}
-			// 	assert.NotEmpty(t, lesson.ID, "lesson ID should not be empty")
-			// 	assert.Equal(t, "lesson 1", lesson.Name)
-			// }
 		})
 	}
 }
