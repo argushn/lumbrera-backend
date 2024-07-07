@@ -16,6 +16,7 @@ type DynamoDBPutItemAPI interface {
 
 func PutItemInDynamoDB(ctx context.Context, api DynamoDBPutItemAPI, tableName string, lesson models.Lesson) (int, error) {
 	item, err := attributevalue.MarshalMap(&lesson)
+
 	if err != nil {
 		return 0, fmt.Errorf("unable to marshal product: %w", err)
 	}

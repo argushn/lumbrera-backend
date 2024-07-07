@@ -40,3 +40,22 @@ func TestSaveLessonInDynamoDB(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalDynamoDBConnection(t *testing.T) {
+	ctx := context.TODO()
+
+	lesson := models.Lesson{
+		Id:   "1",
+		Name: "lesson in local dynamodb",
+	}
+
+	fields_affected, err := PutItemInDynamoDB(ctx, GetLocalClient(t), "lessons", lesson)
+
+	if err != nil {
+		t.Fatalf("expect no error, got %v", err)
+	}
+
+	if e, a := 1, fields_affected; fields_affected != 1 {
+		t.Errorf("expect %v, got %v", e, a)
+	}
+}
