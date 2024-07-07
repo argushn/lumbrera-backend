@@ -11,6 +11,7 @@ deploy: clean build
 
 test:
 	cd functions/lessons && go test
+	cd internal/database && go test
 
 run:
-	docker-compose up
+	sudo docker-compose up
