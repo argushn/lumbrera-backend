@@ -8,4 +8,14 @@ services:
     volumes:
       - ./bin:/var/task
       - ${HOME}/.aws/:/root/.aws
+    links:
+      - dynamodb
     restart: always
+  dynamodb:
+    container_name: dynamodb
+    image: amazon/dynamodb-local
+    ports:
+      - 8000:8000
+    expose:
+      - "8000"
+      
