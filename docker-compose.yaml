@@ -3,14 +3,25 @@ services:
     container_name: lessons-create
     image: public.ecr.aws/lambda/go:latest
     command: create
+    environment:
+      AWS_ACCESS_KEY_ID: 'DUMMYIDEXAMPLE'
+      AWS_SECRET_ACCESS_KEY: 'DUMMYEXAMPLEKEY'
+      AWS_DEFAULT_REGION: 'us-west-1'
+      DYNAMODB_ENDPOINT: http://dynamodb:8000
     ports:
       - 8080:8080
+    expose:
+      - "8080"
     volumes:
       - ./bin:/var/task
-      - ${HOME}/.aws/:/root/.aws
     links:
       - dynamodb
     restart: always
+    depends_on:
+      - dynamodb
+    networks:
+      - local
+
   dynamodb:
     container_name: dynamodb
     image: amazon/dynamodb-local
@@ -18,4 +29,8 @@ services:
       - 8000:8000
     expose:
       - "8000"
-      
+    networks:
+      - local
+
+networks:
+  local:
