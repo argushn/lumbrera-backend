@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"strconv"
 
 	"lumbrera/internal/database"
 	"lumbrera/internal/models"
@@ -17,13 +19,32 @@ import (
 )
 
 func main() {
-	sdkConfig, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		fmt.Println("Couldn't load default configuration. Have you set up your AWS account?")
-		fmt.Println(err)
-		return
+	dynamodbEndpoint := os.Getenv("DYNAMODB_ENDPOINT")
+	var dynamoClient *dynamodb.Client
+	var err error
+
+	log.Println("DYNAMODB_ENDPOINT:", dynamodbEndpoint)
+	log.Println("AWS_DEFAULT_REGION:", os.Getenv("AWS_DEFAULT_REGION"))
+
+	if dynamodbEndpoint != "" {
+		log.Println("Using custom endpoint:", dynamodbEndpoint)
+		dynamoClient, err = database.GetLocalClient(dynamodbEndpoint)
+
+		if err != nil {
+			log.Println("Couldn't load configuration with custom endpoint.", err)
+			return
+		}
+	} else {
+		sdkConfig, err := config.LoadDefaultConfig(context.TODO())
+
+		if err != nil {
+			log.Println("Couldn't load default configuration. Have you set up your AWS account?", err)
+			return
+		}
+
+		dynamoClient = dynamodb.NewFromConfig(sdkConfig)
 	}
-	dynamoClient := dynamodb.NewFromConfig(sdkConfig)
+
 	handler := &Handler{
 		Client: dynamoClient,
 	}
@@ -61,8 +82,17 @@ func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest)
 
 	lesson.Id = uuid.New().String()
 
-	database.PutItemInDynamoDB(ctx, h.Client, "lessons", lesson)
+	fields_affected, err := database.PutItemInDynamoDB(ctx, h.Client, "lessons", lesson)
 
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       "An error happened",
+		}, err
+	}
+
+	log.Println("Creating lesson: " + lesson.Name)
+	log.Println("Affected fields: " + strconv.Itoa(fields_affected))
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Body:       "Lesson " + lesson.Name + " was created successfully",

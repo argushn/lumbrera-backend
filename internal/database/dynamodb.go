@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"lumbrera/internal/models"
 
@@ -20,6 +21,9 @@ func PutItemInDynamoDB(ctx context.Context, api DynamoDBPutItemAPI, tableName st
 	if err != nil {
 		return 0, fmt.Errorf("unable to marshal product: %w", err)
 	}
+
+	log.Println("Putting lesson in dynamo DB")
+	log.Println(lesson)
 
 	_, err = api.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &tableName,

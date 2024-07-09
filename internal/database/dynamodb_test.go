@@ -10,12 +10,14 @@ import (
 
 func TestSaveLessonInDynamoDB(t *testing.T) {
 	cases := []struct {
+		description     string
 		tableName       string
 		lesson          models.Lesson
 		fields_affected int
 	}{
 		{
-			tableName: "lessons",
+			description: "Save lesson in dynamoDB",
+			tableName:   "lessons",
 			lesson: models.Lesson{
 				Id:   "1",
 				Name: "lesson 1",
@@ -25,7 +27,7 @@ func TestSaveLessonInDynamoDB(t *testing.T) {
 	}
 
 	for i, tt := range cases {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i)+": "+tt.description, func(t *testing.T) {
 			ctx := context.TODO()
 
 			fields_affected, err := PutItemInDynamoDB(ctx, GetMockedClient(t), tt.tableName, tt.lesson)
@@ -49,7 +51,13 @@ func TestLocalDynamoDBConnection(t *testing.T) {
 		Name: "lesson in local dynamodb",
 	}
 
-	fields_affected, err := PutItemInDynamoDB(ctx, GetLocalClient(t), "lessons", lesson)
+	dynamodbClient, err := GetLocalClient("http://localhost:8000")
+
+	if err != nil {
+		t.Fatalf("expect no error, got %v", err)
+	}
+
+	fields_affected, err := PutItemInDynamoDB(ctx, dynamodbClient, "lessons", lesson)
 
 	if err != nil {
 		t.Fatalf("expect no error, got %v", err)
