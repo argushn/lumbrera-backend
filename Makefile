@@ -1,7 +1,8 @@
 .PHONY: build clean deploy
 
 build:
-	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/create functions/lessons/create.go
+	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+		go build -ldflags="-s -w" -o bin/create functions/lessons/create/create.go
 
 clean:
 	rm -rf ./bin ./vendor Gopkg.lock
@@ -10,10 +11,10 @@ deploy: clean build
 	sls deploy --verbose
 
 test: build
-	cd functions/lessons && go test
+	cd functions/lessons/create && go test
 	cd internal/database && go test
 
-run: 
+run: clean build
 	sudo docker-compose up -d
 	until curl -s http://localhost:8000 > /dev/null; do echo "Waiting for DynamoDB to start..."; sleep 2; done 
 
