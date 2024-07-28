@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -12,7 +11,6 @@ import (
 
 func GetLocalClient(endpoint string) (*dynamodb.Client, error) {
 
-	log.Println("from GetLocalClient function: ", endpoint)
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 
 		if service == dynamodb.ServiceID {
