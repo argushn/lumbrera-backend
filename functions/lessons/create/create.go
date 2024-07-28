@@ -53,7 +53,7 @@ func main() {
 }
 
 type Handler struct {
-	Client database.DynamoDBPutItemAPI
+	Client database.DynamoDBAPI
 }
 
 func (h *Handler) Handle(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

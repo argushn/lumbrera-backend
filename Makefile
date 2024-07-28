@@ -4,6 +4,9 @@ build:
 	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 		go build -ldflags="-s -w" -o bin/create functions/lessons/create/create.go
 
+	# env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+	# 	go build -ldflags="-s -w" -o bin/list functions/lessons/list/list.go
+
 clean:
 	rm -rf ./bin ./vendor Gopkg.lock
 
