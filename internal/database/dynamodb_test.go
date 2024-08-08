@@ -68,12 +68,14 @@ func TestReadLessonsFromDynamoDB(t *testing.T) {
 
 			lessons := []models.Lesson{}
 
+			mockedClient := GetMockedClient(t)
+
 			for _, lesson := range tt.initialLessons {
-				PutItemInDynamoDB(ctx, GetMockedClient(t), tt.tableName, lesson)
+				PutItemInDynamoDB(ctx, mockedClient, tt.tableName, lesson)
 			}
 
 			for _, lesson := range tt.expectedLessons {
-				readLesson, err := GetItemFromDynamoDB(ctx, GetMockedClient(t), tt.tableName, lesson.Id)
+				readLesson, err := GetItemFromDynamoDB(ctx, mockedClient, tt.tableName, lesson.Id)
 
 				if err != nil {
 					t.Fatalf("expect no error, got %v", err)
