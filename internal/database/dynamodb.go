@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"lumbrera/internal/models"
 
@@ -18,6 +19,8 @@ type DynamoDBAPI interface {
 
 func PutItemInDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName string, lesson models.Lesson) (int, error) {
 	item, err := attributevalue.MarshalMap(&lesson)
+
+	log.Print("from dynamodb.go/PutItemInDynamoDB", item)
 
 	if err != nil {
 		return 0, fmt.Errorf("unable to marshal product: %w", err)

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -23,28 +24,27 @@ type MockDynamoDBClient struct {
 
 func (m *MockDynamoDBClient) PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
 
-	// m.mu.Lock()
-	// defer m.mu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	// if params.TableName == nil {
-	// 	return nil, fmt.Errorf("TableName is nil")
-	// }
-	// tableName := *params.TableName
+	id, ok := params.Item["ID"].(*types.AttributeValueMemberS)
 
-	// if m.data[tableName] == nil {
-	// 	m.data[tableName] = make(map[string]map[string]types.AttributeValue)
-	// }
+	if !ok {
+		return nil, fmt.Errorf("id attribute is not a string")
+	}
 
-	// log.Print("id: ", params.Item["Id"])
+	tableName := *params.TableName
 
-	// id, ok := params.Item["Id"].(*types.AttributeValueMemberS)
-	// if !ok {
-	// 	return nil, fmt.Errorf("id attribute is not a string")
-	// }
+	if m.data[tableName] == nil {
+		m.data[tableName] = make(map[string]map[string]types.AttributeValue)
+	}
 
-	// m.data[tableName][id.Value] = params.Item
+	if m.data[tableName][id.Value] == nil {
+		m.data[tableName][id.Value] = make(map[string]types.AttributeValue)
+	}
 
-	// return &dynamodb.PutItemOutput{}, nil
+	m.data[tableName][id.Value] = params.Item
+
 	return &dynamodb.PutItemOutput{}, nil
 }
 

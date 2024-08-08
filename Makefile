@@ -14,6 +14,7 @@ deploy: clean build
 	sls deploy --verbose
 
 test: build
+	clear
 	cd functions/lessons/create && go test
 	cd internal/database && go test
 
