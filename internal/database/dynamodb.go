@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"lumbrera/internal/models"
 
@@ -19,8 +18,6 @@ type DynamoDBAPI interface {
 
 func PutItemInDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName string, lesson models.Lesson) (int, error) {
 	item, err := attributevalue.MarshalMap(&lesson)
-
-	log.Print("from dynamodb.go/PutItemInDynamoDB", item)
 
 	if err != nil {
 		return 0, fmt.Errorf("unable to marshal product: %w", err)
@@ -44,7 +41,7 @@ func GetItemFromDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName str
 	getItemInput, err := api.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: &tableName,
 		Key: map[string]types.AttributeValue{
-			"Id": &types.AttributeValueMemberS{Value: lessonID},
+			"ID": &types.AttributeValueMemberS{Value: lessonID},
 		},
 	})
 
@@ -56,11 +53,7 @@ func GetItemFromDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName str
 
 	if err != nil {
 		return lesson, fmt.Errorf("failed to unmarshal item to lesson: %w", err)
-
 	}
-
-	lesson.Id = "1"
-	lesson.Name = "Lesson 1"
 
 	return lesson, nil
 }

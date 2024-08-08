@@ -49,26 +49,25 @@ func (m *MockDynamoDBClient) PutItem(ctx context.Context, params *dynamodb.PutIt
 }
 
 func (m *MockDynamoDBClient) GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
-	// m.mu.Lock()
-	// defer m.mu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	// if params.TableName == nil {
-	// 	return nil, fmt.Errorf("TableName is nil")
-	// }
-	// tableName := *params.TableName
+	if params.TableName == nil {
+		return nil, fmt.Errorf("TableName is nil")
+	}
+	tableName := *params.TableName
 
-	// key, ok := params.Key["Id"].(*types.AttributeValueMemberS)
-	// if !ok {
-	// 	return nil, fmt.Errorf("Key 'Id' is not a string")
-	// }
+	key, ok := params.Key["ID"].(*types.AttributeValueMemberS)
+	if !ok {
+		return nil, fmt.Errorf("key 'ID' is not a string")
+	}
 
-	// item, ok := m.data[tableName][key.Value]
-	// if !ok {
-	// 	return &dynamodb.GetItemOutput{}, nil
-	// }
+	item, ok := m.data[tableName][key.Value]
+	if !ok {
+		return &dynamodb.GetItemOutput{}, nil
+	}
 
-	// return &dynamodb.GetItemOutput{Item: item}, nil
-	return &dynamodb.GetItemOutput{}, nil
+	return &dynamodb.GetItemOutput{Item: item}, nil
 }
 
 func NewMockDynamoDBClient() *MockDynamoDBClient {
