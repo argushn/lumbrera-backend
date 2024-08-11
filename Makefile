@@ -4,8 +4,8 @@ build:
 	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 		go build -ldflags="-s -w" -o bin/create functions/lessons/create/create.go
 
-	# env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-	# 	go build -ldflags="-s -w" -o bin/list functions/lessons/list/list.go
+	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+		go build -ldflags="-s -w" -o bin/get functions/lessons/get/get.go
 
 clean:
 	rm -rf ./bin ./vendor Gopkg.lock
@@ -15,8 +15,9 @@ deploy: clean build
 
 test: build
 	clear
-	cd functions/lessons/create && go test
 	cd internal/database && go test
+	cd functions/lessons/create && go test
+	cd functions/lessons/get && go test
 
 run: clean build
 	sudo docker-compose up -d
@@ -35,4 +36,4 @@ run: clean build
 	sudo docker-compose logs -f
 
 stop: 
-	sudo docker-compose down
+	sudo docker compose down
