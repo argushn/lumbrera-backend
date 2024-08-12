@@ -14,6 +14,7 @@ import (
 type DynamoDBAPI interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
 }
 
 func PutItemInDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName string, lesson models.Lesson) (int, error) {
@@ -39,10 +40,10 @@ func GetItemFromDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName str
 	var lesson models.Lesson
 
 	getItemInput, err := api.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: &tableName,
 		Key: map[string]types.AttributeValue{
 			"ID": &types.AttributeValueMemberS{Value: lessonID},
 		},
+		TableName: &tableName,
 	})
 
 	if err != nil {
@@ -56,4 +57,17 @@ func GetItemFromDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName str
 	}
 
 	return lesson, nil
+}
+
+func UpdateItemInDynamoDB(ctx context.Context, api mockDynamoDBAPI, tableName string, lesson models.Lesson) (int, error) {
+	//
+
+	api.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		Key: map[string]types.AttributeValue{
+			"ID": &types.AttributeValueMemberS{Value: lesson.Id},
+		},
+		TableName: &tableName,
+	})
+
+	return 1, nil
 }

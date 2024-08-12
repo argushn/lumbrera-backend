@@ -91,6 +91,42 @@ func TestReadLessonsFromDynamoDB(t *testing.T) {
 	}
 }
 
+func TestUpdateLessonFromDynamoDB(t *testing.T) {
+	cases := []struct {
+		description string
+		lesson      models.Lesson
+		newName     string
+	}{
+		{
+			description: "Valid request modifying the lesson name",
+			lesson: models.Lesson{
+				Id:   "1",
+				Name: "Lesson 1",
+			},
+			newName: "Modified lesson 1 name",
+		},
+	}
+
+	for i, tt := range cases {
+		t.Run(strconv.Itoa(i)+":"+tt.description, func(t *testing.T) {
+			ctx := context.TODO()
+			client := GetMockedClient(t)
+			tableName := "Lessons"
+
+			PutItemInDynamoDB(ctx, client, tableName, tt.lesson)
+
+			tt.lesson.Name = tt.newName
+			UpdateItemInDynamoDB(ctx, client, tableName, tt.lesson)
+
+			readLesson, _ := GetItemFromDynamoDB(ctx, client, tableName, tt.lesson.Id)
+
+			if e, a := tt.newName, readLesson.Name; e != a {
+				t.Errorf("expect %v to be similar to %v", tt.newName, readLesson.Name)
+			}
+		})
+	}
+}
+
 func TestLocalDynamoDBConnection(t *testing.T) {
 	ctx := context.TODO()
 

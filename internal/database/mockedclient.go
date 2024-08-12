@@ -13,6 +13,7 @@ import (
 type mockDynamoDBAPI interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
 }
 
 type MockDynamoDBClient struct {
@@ -68,6 +69,31 @@ func (m *MockDynamoDBClient) GetItem(ctx context.Context, params *dynamodb.GetIt
 	}
 
 	return &dynamodb.GetItemOutput{Item: item}, nil
+}
+
+func (m *MockDynamoDBClient) UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFuns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	// Define the update expression for multiple attributes
+	m.mu.Lock()
+	newName := "Modified lesson 1 name"
+
+	defer m.mu.Unlock()
+
+	tableName := *params.TableName
+
+	key, ok := params.Key["ID"].(*types.AttributeValueMemberS)
+	if !ok {
+		return nil, fmt.Errorf("key 'ID' is not a string")
+	}
+
+	item, ok := m.data[tableName][key.Value]
+
+	item["Title"] = &types.AttributeValueMemberS{Value: newName}
+
+	if !ok {
+		return &dynamodb.UpdateItemOutput{}, nil
+	}
+
+	return &dynamodb.UpdateItemOutput{Attributes: item}, nil
 }
 
 func NewMockDynamoDBClient() *MockDynamoDBClient {
