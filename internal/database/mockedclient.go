@@ -87,7 +87,7 @@ func (m *MockDynamoDBClient) UpdateItem(ctx context.Context, params *dynamodb.Up
 
 	item, ok := m.data[tableName][key.Value]
 
-	item["Title"] = &types.AttributeValueMemberS{Value: newName}
+	item["Name"] = &types.AttributeValueMemberS{Value: newName}
 
 	if !ok {
 		return &dynamodb.UpdateItemOutput{}, nil
