@@ -1,0 +1,982 @@
+openapi: 3.0.3
+info:
+  title: Lumbrera API
+  description: |
+    Gamified Bible Study Application API
+
+    This API powers the Lumbrera mobile app, providing endpoints for user management,
+    lessons, progress tracking, achievements, and social features.
+  version: 2026.01.0
+  contact:
+    name: Lumbrera Team
+    email: api@lumbrera.app
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.lumbrera.app/v1
+    description: Production
+  - url: https://staging-api.lumbrera.app/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Local Development
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication and authorization
+  - name: Users
+    description: User management
+  - name: Lessons
+    description: Lesson content and management
+  - name: Progress
+    description: User progress tracking
+  - name: Achievements
+    description: Achievements and badges
+  - name: Leaderboards
+    description: Rankings and leaderboards
+  - name: Social
+    description: Friends and challenges
+
+paths:
+  # Authentication
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      description: Returns the authenticated user's profile information
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Users
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      operationId: getUserById
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Users]
+      summary: Update user profile
+      operationId: updateUser
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{userId}/stats:
+    get:
+      tags: [Users]
+      summary: Get user statistics
+      operationId: getUserStats
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+
+  /users/{userId}/preferences:
+    put:
+      tags: [Users]
+      summary: Update user preferences
+      operationId: updateUserPreferences
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '200':
+          description: Preferences updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # Lessons
+  /lessons:
+    get:
+      tags: [Lessons]
+      summary: List lessons
+      operationId: listLessons
+      parameters:
+        - name: book
+          in: query
+          schema:
+            type: string
+          description: Filter by book (e.g., Genesis, Exodus)
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced, expert]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor
+      responses:
+        '200':
+          description: List of lessons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lessons:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lesson'
+                  next_cursor:
+                    type: string
+                    nullable: true
+
+    post:
+      tags: [Lessons]
+      summary: Create lesson (Admin only)
+      operationId: createLesson
+      security:
+        - BearerAuth: ['admin:lessons']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLessonRequest'
+      responses:
+        '201':
+          description: Lesson created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /lessons/{lessonId}:
+    get:
+      tags: [Lessons]
+      summary: Get lesson details
+      operationId: getLessonById
+      parameters:
+        - $ref: '#/components/parameters/lessonId'
+      responses:
+        '200':
+          description: Lesson details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Lessons]
+      summary: Update lesson (Admin only)
+      operationId: updateLesson
+      security:
+        - BearerAuth: ['admin:lessons']
+      parameters:
+        - $ref: '#/components/parameters/lessonId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLessonRequest'
+      responses:
+        '200':
+          description: Lesson updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+
+  /lessons/recommended:
+    get:
+      tags: [Lessons]
+      summary: Get recommended lessons
+      description: Returns personalized lesson recommendations based on user progress
+      operationId: getRecommendedLessons
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Recommended lessons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lessons:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lesson'
+
+  # Progress
+  /progress:
+    get:
+      tags: [Progress]
+      summary: Get user's overall progress
+      operationId: getOverallProgress
+      responses:
+        '200':
+          description: Overall progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverallProgress'
+
+  /progress/lessons/{lessonId}:
+    get:
+      tags: [Progress]
+      summary: Get progress for specific lesson
+      operationId: getLessonProgress
+      parameters:
+        - $ref: '#/components/parameters/lessonId'
+      responses:
+        '200':
+          description: Lesson progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProgress'
+
+  /progress/lessons/{lessonId}/start:
+    post:
+      tags: [Progress]
+      summary: Start a lesson
+      operationId: startLesson
+      parameters:
+        - $ref: '#/components/parameters/lessonId'
+      responses:
+        '200':
+          description: Lesson started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProgress'
+
+  /progress/lessons/{lessonId}/complete:
+    put:
+      tags: [Progress]
+      summary: Complete a lesson
+      operationId: completeLesson
+      parameters:
+        - $ref: '#/components/parameters/lessonId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteLessonRequest'
+      responses:
+        '200':
+          description: Lesson completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteLessonResponse'
+
+  /progress/streak:
+    get:
+      tags: [Progress]
+      summary: Get current streak info
+      operationId: getStreak
+      responses:
+        '200':
+          description: Streak information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreakInfo'
+
+  # Achievements
+  /achievements:
+    get:
+      tags: [Achievements]
+      summary: List all achievements
+      operationId: listAchievements
+      responses:
+        '200':
+          description: List of achievements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  achievements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Achievement'
+
+  /achievements/{achievementId}:
+    get:
+      tags: [Achievements]
+      summary: Get achievement details
+      operationId: getAchievementById
+      parameters:
+        - name: achievementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Achievement details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Achievement'
+
+  /users/{userId}/achievements:
+    get:
+      tags: [Achievements]
+      summary: Get user's achievements
+      operationId: getUserAchievements
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: User's achievements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  achievements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserAchievement'
+
+  # Leaderboards
+  /leaderboards/global:
+    get:
+      tags: [Leaderboards]
+      summary: Get global leaderboard
+      operationId: getGlobalLeaderboard
+      parameters:
+        - $ref: '#/components/parameters/leaderboardPeriod'
+        - $ref: '#/components/parameters/leaderboardLimit'
+      responses:
+        '200':
+          description: Global leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
+
+  /leaderboards/friends:
+    get:
+      tags: [Leaderboards]
+      summary: Get friends leaderboard
+      operationId: getFriendsLeaderboard
+      parameters:
+        - $ref: '#/components/parameters/leaderboardPeriod'
+      responses:
+        '200':
+          description: Friends leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
+
+  /leaderboards/local:
+    get:
+      tags: [Leaderboards]
+      summary: Get local/regional leaderboard
+      operationId: getLocalLeaderboard
+      parameters:
+        - $ref: '#/components/parameters/leaderboardPeriod'
+        - $ref: '#/components/parameters/leaderboardLimit'
+      responses:
+        '200':
+          description: Local leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
+
+  # Social
+  /friends:
+    get:
+      tags: [Social]
+      summary: List friends
+      operationId: listFriends
+      responses:
+        '200':
+          description: List of friends
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  friends:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friend'
+
+  /friends/{userId}:
+    post:
+      tags: [Social]
+      summary: Add friend
+      operationId: addFriend
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '201':
+          description: Friend added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Friend'
+
+    delete:
+      tags: [Social]
+      summary: Remove friend
+      operationId: removeFriend
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '204':
+          description: Friend removed
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0 JWT token
+
+  parameters:
+    userId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: User ID
+
+    lessonId:
+      name: lessonId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Lesson ID
+
+    leaderboardPeriod:
+      name: period
+      in: query
+      schema:
+        type: string
+        enum: [weekly, monthly, all_time]
+        default: weekly
+      description: Leaderboard time period
+
+    leaderboardLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 100
+        minimum: 1
+        maximum: 100
+
+  schemas:
+    # User
+    User:
+      type: object
+      properties:
+        user_id:
+          type: string
+        auth0_id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        avatar:
+          type: string
+          format: uri
+        xp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        translation:
+          type: string
+          example: NIV
+        daily_goal:
+          type: integer
+          example: 50
+        notifications_on:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        avatar:
+          type: string
+
+    UserPreferences:
+      type: object
+      properties:
+        translation:
+          type: string
+        daily_goal:
+          type: integer
+        notifications_on:
+          type: boolean
+
+    UserStats:
+      type: object
+      properties:
+        total_xp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        lessons_completed:
+          type: integer
+        achievements_unlocked:
+          type: integer
+        study_time_minutes:
+          type: integer
+        perfect_scores:
+          type: integer
+
+    # Lesson
+    Lesson:
+      type: object
+      properties:
+        lesson_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        book:
+          type: string
+        chapter:
+          type: integer
+        verses:
+          type: string
+        content_type:
+          type: string
+          enum: [reading, quiz, memory, matching, timeline]
+        content:
+          type: object
+          description: JSON content specific to content_type
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+        xp_reward:
+          type: integer
+        est_duration:
+          type: integer
+          description: Estimated duration in minutes
+        order:
+          type: integer
+        prerequisites:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateLessonRequest:
+      type: object
+      required:
+        - title
+        - book
+        - content_type
+        - content
+        - difficulty
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        book:
+          type: string
+        chapter:
+          type: integer
+        verses:
+          type: string
+        content_type:
+          type: string
+        content:
+          type: object
+        difficulty:
+          type: string
+        xp_reward:
+          type: integer
+        est_duration:
+          type: integer
+        prerequisites:
+          type: array
+          items:
+            type: string
+
+    UpdateLessonRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        content:
+          type: object
+        difficulty:
+          type: string
+
+    # Progress
+    UserProgress:
+      type: object
+      properties:
+        user_id:
+          type: string
+        lesson_id:
+          type: string
+        status:
+          type: string
+          enum: [not_started, in_progress, completed]
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        attempts:
+          type: integer
+        xp_earned:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+
+    OverallProgress:
+      type: object
+      properties:
+        total_lessons:
+          type: integer
+        completed_lessons:
+          type: integer
+        in_progress_lessons:
+          type: integer
+        total_xp:
+          type: integer
+        current_level:
+          type: integer
+        xp_to_next_level:
+          type: integer
+        streak:
+          type: integer
+        books_completed:
+          type: array
+          items:
+            type: string
+
+    CompleteLessonRequest:
+      type: object
+      required:
+        - score
+        - time_spent
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        time_spent:
+          type: integer
+          description: Time spent in seconds
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              question_id:
+                type: string
+              answer:
+                type: string
+              correct:
+                type: boolean
+
+    CompleteLessonResponse:
+      type: object
+      properties:
+        user_progress:
+          $ref: '#/components/schemas/UserProgress'
+        user_stats:
+          type: object
+          properties:
+            total_xp:
+              type: integer
+            level:
+              type: integer
+            streak:
+              type: integer
+        achievements_unlocked:
+          type: array
+          items:
+            $ref: '#/components/schemas/Achievement'
+        level_up:
+          type: boolean
+
+    StreakInfo:
+      type: object
+      properties:
+        current_streak:
+          type: integer
+        longest_streak:
+          type: integer
+        last_study_date:
+          type: string
+          format: date
+        freeze_available:
+          type: integer
+        today_goal_met:
+          type: boolean
+        today_xp:
+          type: integer
+
+    # Achievement
+    Achievement:
+      type: object
+      properties:
+        achievement_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        type:
+          type: string
+        requirement:
+          type: integer
+        rarity:
+          type: string
+          enum: [common, rare, epic, legendary]
+        xp_reward:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    UserAchievement:
+      type: object
+      properties:
+        achievement_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        progress:
+          type: integer
+        requirement:
+          type: integer
+        unlocked:
+          type: boolean
+        unlocked_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # Leaderboard
+    Leaderboard:
+      type: object
+      properties:
+        period:
+          type: string
+          enum: [weekly, monthly, all_time]
+        type:
+          type: string
+          enum: [global, friends, local]
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+        user_rank:
+          type: integer
+          description: Current user's rank
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        user_id:
+          type: string
+        user_name:
+          type: string
+        avatar:
+          type: string
+        score:
+          type: integer
+        level:
+          type: integer
+
+    # Social
+    Friend:
+      type: object
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        avatar:
+          type: string
+        level:
+          type: integer
+        streak:
+          type: integer
+        added_at:
+          type: string
+          format: date-time
+
+    # Error
+    Error:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.lumbrera.app/errors/bad-request
+            title: Bad Request
+            status: 400
+            detail: Invalid request parameters
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.lumbrera.app/errors/unauthorized
+            title: Unauthorized
+            status: 401
+            detail: Missing or invalid authentication token
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.lumbrera.app/errors/forbidden
+            title: Forbidden
+            status: 403
+            detail: Insufficient permissions
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.lumbrera.app/errors/not-found
+            title: Not Found
+            status: 404
+            detail: The requested resource was not found

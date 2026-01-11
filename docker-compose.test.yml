@@ -1,0 +1,107 @@
+version: '3.8'
+
+# Docker Compose configuration for running tests
+# Usage: docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+
+services:
+  # DynamoDB Local for testing
+  dynamodb-test:
+    container_name: lumbrera-dynamodb-test
+    image: amazon/dynamodb-local:latest
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "8002:8000"
+    networks:
+      - lumbrera-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Initialize test database
+  init-test-db:
+    container_name: lumbrera-init-test-db
+    image: amazon/aws-cli:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for DynamoDB to be ready..."
+        sleep 3
+        echo "Creating test table..."
+        aws dynamodb create-table \
+          --endpoint-url http://dynamodb-test:8000 \
+          --table-name lumbrera-test \
+          --attribute-definitions \
+            AttributeName=PK,AttributeType=S \
+            AttributeName=SK,AttributeType=S \
+            AttributeName=GSI1PK,AttributeType=S \
+            AttributeName=GSI1SK,AttributeType=S \
+            AttributeName=GSI2PK,AttributeType=S \
+            AttributeName=GSI2SK,AttributeType=S \
+          --key-schema \
+            AttributeName=PK,KeyType=HASH \
+            AttributeName=SK,KeyType=RANGE \
+          --global-secondary-indexes \
+            "[{\"IndexName\":\"GSI1\",\"KeySchema\":[{\"AttributeName\":\"GSI1PK\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"GSI1SK\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"ProvisionedThroughput\":{\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5}},{\"IndexName\":\"GSI2\",\"KeySchema\":[{\"AttributeName\":\"GSI2PK\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"GSI2SK\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"ProvisionedThroughput\":{\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5}}]" \
+          --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+          --region us-east-1
+        echo "Test table created!"
+    environment:
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+      - AWS_DEFAULT_REGION=us-east-1
+    depends_on:
+      dynamodb-test:
+        condition: service_healthy
+    networks:
+      - lumbrera-test-network
+
+  # Run Go unit and integration tests
+  test-runner:
+    container_name: lumbrera-test-runner
+    image: golang:1.22
+    working_dir: /app
+    command: ["go", "test", "-v", "-cover", "./..."]
+    environment:
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+      - AWS_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://dynamodb-test:8000
+      - TABLE_NAME=lumbrera-test
+      - STAGE=test
+      - CGO_ENABLED=0
+    volumes:
+      - .:/app
+    depends_on:
+      init-test-db:
+        condition: service_completed_successfully
+    networks:
+      - lumbrera-test-network
+
+  # Run E2E tests with Godog (Cucumber)
+  e2e-runner:
+    container_name: lumbrera-e2e-runner
+    image: golang:1.22
+    working_dir: /app
+    command: ["go", "test", "-v", "./tests/e2e/..."]
+    environment:
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+      - AWS_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://dynamodb-test:8000
+      - TABLE_NAME=lumbrera-test
+      - STAGE=test
+      - API_BASE_URL=http://localhost:3000/v1
+    volumes:
+      - .:/app
+    depends_on:
+      init-test-db:
+        condition: service_completed_successfully
+    networks:
+      - lumbrera-test-network
+
+networks:
+  lumbrera-test-network:
+    driver: bridge
+    name: lumbrera-test-network
