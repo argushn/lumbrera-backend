@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # DynamoDB Local - Local database for development
+  dynamodb:
+    container_name: lumbrera-dynamodb
+    image: amazon/dynamodb-local:latest
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    networks:
+      - lumbrera-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # DynamoDB Admin - Web UI for managing local DynamoDB
+  dynamodb-admin:
+    container_name: lumbrera-dynamodb-admin
+    image: aaronshaf/dynamodb-admin:latest
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://dynamodb:8000
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+    networks:
+      - lumbrera-network
+
+  # Backend API - Lambda functions running locally
+  api-lessons-create:
+    container_name: lumbrera-api-lessons-create
+    image: public.ecr.aws/lambda/go:latest
+    command: create
+    ports:
+      - "8080:8080"
+    environment:
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+      - AWS_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+      - TABLE_NAME=lumbrera-local
+      - STAGE=local
+    volumes:
+      - ./bin:/var/task
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+    networks:
+      - lumbrera-network
+    restart: unless-stopped
+
+  api-lessons-get:
+    container_name: lumbrera-api-lessons-get
+    image: public.ecr.aws/lambda/go:latest
+    command: get
+    ports:
+      - "8081:8080"
+    environment:
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+      - AWS_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+      - TABLE_NAME=lumbrera-local
+      - STAGE=local
+    volumes:
+      - ./bin:/var/task
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+    networks:
+      - lumbrera-network
+    restart: unless-stopped
+
+  # Init container - Creates DynamoDB tables
+  init-db:
+    container_name: lumbrera-init-db
+    image: amazon/aws-cli:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for DynamoDB to be ready..."
+        sleep 5
+        echo "Creating lumbrera-local table..."
+        aws dynamodb create-table \
+          --endpoint-url http://dynamodb:8000 \
+          --table-name lumbrera-local \
+          --attribute-definitions \
+            AttributeName=PK,AttributeType=S \
+            AttributeName=SK,AttributeType=S \
+            AttributeName=GSI1PK,AttributeType=S \
+            AttributeName=GSI1SK,AttributeType=S \
+            AttributeName=GSI2PK,AttributeType=S \
+            AttributeName=GSI2SK,AttributeType=S \
+          --key-schema \
+            AttributeName=PK,KeyType=HASH \
+            AttributeName=SK,KeyType=RANGE \
+          --global-secondary-indexes \
+            "[{\"IndexName\":\"GSI1\",\"KeySchema\":[{\"AttributeName\":\"GSI1PK\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"GSI1SK\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"ProvisionedThroughput\":{\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5}},{\"IndexName\":\"GSI2\",\"KeySchema\":[{\"AttributeName\":\"GSI2PK\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"GSI2SK\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"ProvisionedThroughput\":{\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5}}]" \
+          --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+          --region us-east-1 || echo "Table already exists or creation failed"
+        echo "Table creation complete!"
+    environment:
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+      - AWS_DEFAULT_REGION=us-east-1
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+    networks:
+      - lumbrera-network
+
+networks:
+  lumbrera-network:
+    driver: bridge
+    name: lumbrera-network
+
+volumes:
+  dynamodb-data:
+    driver: local
+    name: lumbrera-dynamodb-data
